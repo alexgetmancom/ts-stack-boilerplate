@@ -18,8 +18,8 @@
     "webhook:set": "tsx scripts/manage-webhook.ts set",
     "webhook:delete": "tsx scripts/manage-webhook.ts delete",
     "webhook:info": "tsx scripts/manage-webhook.ts info",
-    "lint": "biome check src",
-    "lint:write": "biome check --write src",
+    "lint": "biome check src scripts tests drizzle.config.ts",
+    "lint:write": "biome check --write src scripts tests drizzle.config.ts",
     "test": "vitest run"
   },
   "dependencies": {

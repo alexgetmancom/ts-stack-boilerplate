@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { Bot } from "grammy";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { handleStart } from "../src/bot/commands/start.js";
+import type { BotContext } from "../src/bot/context.js";
 import { loadConfig } from "../src/config.js";
 import { openDb } from "../src/db/client.js";
 import { users } from "../src/db/schema.js";
-import { handleStart } from "../src/bot/commands/start.js";
 import { createHttpApp } from "../src/http.js";
-import { Bot } from "grammy";
-import type { BotContext } from "../src/bot/context.js";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 describe("Boilerplate Config Tests", () => {
   const originalEnv = process.env;
@@ -23,7 +23,7 @@ describe("Boilerplate Config Tests", () => {
     process.env.TELEGRAM_BOT_TOKEN = "123:abc";
     process.env.BOT_MODE = "polling";
     process.env.PORT = "9000";
-    
+
     const config = loadConfig();
     expect(config.TELEGRAM_BOT_TOKEN).toBe("123:abc");
     expect(config.BOT_MODE).toBe("polling");
@@ -31,7 +31,7 @@ describe("Boilerplate Config Tests", () => {
   });
 
   it("should fail and exit when TELEGRAM_BOT_TOKEN is missing", () => {
-    delete process.env.TELEGRAM_BOT_TOKEN;
+    process.env.TELEGRAM_BOT_TOKEN = undefined;
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("process.exit called");
     });
@@ -47,8 +47,8 @@ describe("Boilerplate Config Tests", () => {
   it("should fail when BOT_MODE is webhook but webhook settings are missing", () => {
     process.env.TELEGRAM_BOT_TOKEN = "123:abc";
     process.env.BOT_MODE = "webhook";
-    delete process.env.PUBLIC_WEBHOOK_URL;
-    delete process.env.TELEGRAM_WEBHOOK_SECRET;
+    process.env.PUBLIC_WEBHOOK_URL = undefined;
+    process.env.TELEGRAM_WEBHOOK_SECRET = undefined;
 
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("process.exit called");
@@ -69,11 +69,11 @@ describe("Boilerplate Database Tests", () => {
   it("should initialize database and tables with migrations", () => {
     const { sqlite, drizzle } = openDb(testDbPath);
     migrate(drizzle, { migrationsFolder: "./drizzle" });
-    
+
     // Test database access
     const allUsers = drizzle.select().from(users).all();
     expect(Array.isArray(allUsers)).toBe(true);
-    
+
     sqlite.close();
   });
 });
@@ -86,10 +86,13 @@ describe("Boilerplate HTTP Routes Tests", () => {
       TELEGRAM_API_BASE_URL: "https://api.telegram.org",
       PORT: 8080,
       BIND_HOST: "127.0.0.1",
-      DATABASE_URL: "./data/test.db",
+      DATABASE_URL: "./data/test-http.db",
     };
+    const { sqlite, drizzle } = openDb(mockConfig.DATABASE_URL);
+    migrate(drizzle, { migrationsFolder: "./drizzle" });
+
     const mockBot = new Bot<BotContext>(mockConfig.TELEGRAM_BOT_TOKEN);
-    const app = createHttpApp(mockConfig, mockBot);
+    const app = createHttpApp(mockConfig, mockBot, drizzle);
 
     const resHealth = await app.request("/healthz");
     expect(resHealth.status).toBe(200);
@@ -98,6 +101,8 @@ describe("Boilerplate HTTP Routes Tests", () => {
     const resReady = await app.request("/readyz");
     expect(resReady.status).toBe(200);
     expect(await resReady.text()).toBe("ready\n");
+
+    sqlite.close();
   });
 });
 
@@ -105,7 +110,7 @@ describe("Boilerplate Telegram Bot Start Handler Tests", () => {
   it("should handle start command, register new user, and reply", async () => {
     const { sqlite, drizzle } = openDb("./data/test.db");
     migrate(drizzle, { migrationsFolder: "./drizzle" });
-    
+
     // Clear user table for test sanity
     drizzle.delete(users).run();
 

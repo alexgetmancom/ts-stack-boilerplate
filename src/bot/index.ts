@@ -6,6 +6,10 @@ import { handleStart } from "./commands/start.js";
 import type { BotContext } from "./context.js";
 
 export function createBot(config: Config, db: DbClient): Bot<BotContext> {
+  if (!config.TELEGRAM_BOT_TOKEN) {
+    throw new Error("TELEGRAM_BOT_TOKEN is required to instantiate the bot.");
+  }
+
   const bot = new Bot<BotContext>(config.TELEGRAM_BOT_TOKEN, {
     client: {
       apiRoot: config.TELEGRAM_API_BASE_URL,

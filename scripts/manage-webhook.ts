@@ -5,11 +5,11 @@ const config = loadConfig();
 const action = process.argv[2];
 
 if (!action || !["set", "delete", "info"].includes(action)) {
-  console.error("❌ Usage: tsx scripts/manage-webhook.ts <set|delete|info>");
+  console.error("❌ Usage: tsx scripts/manage-webhook.ts <set|delete|info> [--keep-pending]");
   process.exit(1);
 }
 
-const bot = new Bot(config.TELEGRAM_BOT_TOKEN, {
+const bot = new Bot(config.TELEGRAM_BOT_TOKEN || "", {
   client: { apiRoot: config.TELEGRAM_API_BASE_URL },
 });
 
@@ -35,12 +35,13 @@ async function main() {
         process.exit(1);
       }
 
+      const dropPendingUpdates = !process.argv.includes("--keep-pending");
       const webhookUrl = `${config.PUBLIC_WEBHOOK_URL.replace(/\/$/, "")}/telegram/webhook`;
-      console.log(`⏳ Setting webhook to: ${webhookUrl}`);
-      
+      console.log(`⏳ Setting webhook to: ${webhookUrl} (drop_pending_updates: ${dropPendingUpdates})`);
+
       await bot.api.setWebhook(webhookUrl, {
         secret_token: config.TELEGRAM_WEBHOOK_SECRET,
-        drop_pending_updates: true,
+        drop_pending_updates: dropPendingUpdates,
       });
       console.log("✅ Webhook successfully set!");
     }

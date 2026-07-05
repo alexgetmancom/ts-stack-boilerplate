@@ -6,14 +6,26 @@ dotenv.config();
 const envSchema = z
   .object({
     BOT_MODE: z.enum(["polling", "webhook", "http-only"]).default("polling"),
-    TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),
+    TELEGRAM_BOT_TOKEN: z.string().optional(),
     TELEGRAM_API_BASE_URL: z.string().default("https://api.telegram.org"),
     PORT: z.coerce.number().default(8080),
     BIND_HOST: z.string().default("127.0.0.1"),
     DATABASE_URL: z.string().default("./data/bot.db"),
-    TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
-    PUBLIC_WEBHOOK_URL: z.string().optional(),
+    TELEGRAM_WEBHOOK_SECRET: z.string().min(32).optional(),
+    PUBLIC_WEBHOOK_URL: z.string().url().optional(),
   })
+  .refine(
+    (data) => {
+      if (data.BOT_MODE !== "http-only" && !data.TELEGRAM_BOT_TOKEN) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "TELEGRAM_BOT_TOKEN is required when BOT_MODE is 'polling' or 'webhook'",
+      path: ["TELEGRAM_BOT_TOKEN"],
+    },
+  )
   .refine(
     (data) => {
       if (data.BOT_MODE === "webhook") {

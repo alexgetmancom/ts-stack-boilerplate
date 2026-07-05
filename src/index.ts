@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { createBot } from "./bot/index.js";
 import { loadConfig } from "./config.js";
 import { openDb } from "./db/client.js";
@@ -7,10 +8,22 @@ import { log } from "./logger.js";
 
 const config = loadConfig();
 const db = openDb(config.DATABASE_URL);
-const bot = createBot(config, db.drizzle);
+
+// Run database migrations automatically on startup
+try {
+  log("info", "Running database migrations...");
+  migrate(db.drizzle, { migrationsFolder: "./drizzle" });
+  log("info", "Database migrations completed successfully.");
+} catch (error) {
+  log("error", "Database migration failed", { error: String(error) });
+  process.exit(1);
+}
+
+// Instantiate bot conditionally depending on mode
+const bot = config.BOT_MODE !== "http-only" ? createBot(config, db.drizzle) : null;
 
 // Start bot polling if in polling mode
-if (config.BOT_MODE === "polling") {
+if (config.BOT_MODE === "polling" && bot) {
   void bot.start({
     onStart: (botInfo) => {
       log("info", "grammY bot polling started", { username: botInfo.username });
@@ -25,7 +38,7 @@ if (config.BOT_MODE === "polling") {
 // Start HTTP server (runs in all modes to serve health checks / webhook requests)
 const server = serve(
   {
-    fetch: createHttpApp(config, bot).fetch,
+    fetch: createHttpApp(config, bot, db.drizzle).fetch,
     port: config.PORT,
     hostname: config.BIND_HOST,
   },
@@ -42,7 +55,7 @@ const server = serve(
 async function shutdown(signal: string): Promise<void> {
   log("info", "Stopping services", { signal });
 
-  if (config.BOT_MODE === "polling" && bot.isRunning()) {
+  if (config.BOT_MODE === "polling" && bot && bot.isRunning()) {
     await bot.stop();
     log("info", "grammY bot polling stopped");
   }

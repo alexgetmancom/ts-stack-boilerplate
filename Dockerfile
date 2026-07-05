@@ -23,6 +23,7 @@ COPY package.json pnpm-lock.yaml* .npmrc* ./
 RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /usr/src/app/dist ./dist
+COPY drizzle/ ./drizzle/
 
 # Create database volume directory and set ownership to node user
 RUN mkdir -p data && chown -R node:node /usr/src/app
