@@ -1,28 +1,37 @@
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
+
+# Enable Corepack and prepare pnpm
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /usr/src/app
 
 COPY package.json pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json biome.json ./
 COPY src/ ./src/
 
 RUN pnpm run build
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
+
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 
 WORKDIR /usr/src/app
 
-RUN apk add --no-cache ffmpeg
-
-COPY package.json pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+COPY package.json pnpm-lock.yaml* .npmrc* ./
+RUN pnpm install --prod --frozen-lockfile
 
 COPY --from=builder /usr/src/app/dist ./dist
 
+# Create database volume directory and set ownership to node user
+RUN mkdir -p data && chown -R node:node /usr/src/app
+
+USER node
+
 ENV NODE_ENV=production
-ENV ENABLE_BOT_POLLING=true
-ENV ENABLE_HTTP_SERVER=true
+ENV BOT_MODE=webhook
+ENV BIND_HOST=0.0.0.0
+ENV PORT=8080
 
 CMD ["node", "dist/src/index.js"]

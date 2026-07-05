@@ -1,8 +1,9 @@
 import { Bot } from "grammy";
 import type { Config } from "../config.js";
 import type { DbClient } from "../db/client.js";
-import type { BotContext } from "./context.js";
+import { log } from "../logger.js";
 import { handleStart } from "./commands/start.js";
+import type { BotContext } from "./context.js";
 
 export function createBot(config: Config, db: DbClient): Bot<BotContext> {
   const bot = new Bot<BotContext>(config.TELEGRAM_BOT_TOKEN, {
@@ -23,7 +24,10 @@ export function createBot(config: Config, db: DbClient): Bot<BotContext> {
 
   // Error boundary
   bot.catch((err) => {
-    console.error(`Error in bot execution context: ${err.message}`, err.error);
+    log("error", "Error in bot execution context", {
+      message: err.message,
+      error: String(err.error),
+    });
   });
 
   return bot;
