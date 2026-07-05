@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Code Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack & Install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Biome Lint & Format Check
+        run: pnpm run lint
+
+      - name: TypeScript Compile Check
+        run: pnpm run typecheck
+
+      - name: Generate Drizzle Migrations Check
+        run: pnpm run db:generate
+
+      - name: Run Vitest Tests
+        run: pnpm run test
+
+      - name: Production Build Check
+        run: pnpm run build
+
+  docker:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (Dry Run)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: bot-boilerplate:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
