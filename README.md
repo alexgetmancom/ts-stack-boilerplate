@@ -58,7 +58,7 @@ In `webhook` mode, the callback path is `/telegram/webhook`. Requests are valida
 
 ### 1. Setup local environment
 ```bash
-cp .env.example .env
+cp .env.local.example .env
 ```
 Open `.env` and set `TELEGRAM_BOT_TOKEN`.
 
@@ -72,6 +72,14 @@ pnpm install
 pnpm run db:migrate
 ```
 *Note: In production deployments, migrations run automatically on application startup, so no manual step is required.*
+
+> [!WARNING]
+> **Startup Migrations & Scale-Out Constraints**
+> Performing migrations on startup is safe and recommended for **single-instance deployments** (such as a single VPS process or a single Docker container).
+> If you scale out horizontally (multiple container replicas running concurrently), you risk race conditions and SQLite `SQLITE_BUSY` errors.
+> For horizontal scaling:
+> 1. Disable startup migrations in `src/index.ts` (comment out the `migrate` block).
+> 2. Run migrations as an isolated deployment step (e.g., in your CI pipeline or using a single-run init-container before spinning up your main application replicas).
 
 ### 4. Run Development Server (polling mode)
 ```bash

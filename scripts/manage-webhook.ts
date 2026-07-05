@@ -9,7 +9,12 @@ if (!action || !["set", "delete", "info"].includes(action)) {
   process.exit(1);
 }
 
-const bot = new Bot(config.TELEGRAM_BOT_TOKEN || "", {
+if (!config.TELEGRAM_BOT_TOKEN) {
+  console.error("❌ Error: TELEGRAM_BOT_TOKEN is required for webhook management commands.");
+  process.exit(1);
+}
+
+const bot = new Bot(config.TELEGRAM_BOT_TOKEN, {
   client: { apiRoot: config.TELEGRAM_API_BASE_URL },
 });
 
