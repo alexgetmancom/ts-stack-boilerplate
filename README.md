@@ -58,7 +58,7 @@ In `webhook` mode, the callback path is `/telegram/webhook`. Requests are valida
 
 ### 1. Setup local environment
 ```bash
-cp .env.local.example .env
+cp .env.example .env
 ```
 Open `.env` and set `TELEGRAM_BOT_TOKEN`.
 
